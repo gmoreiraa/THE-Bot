@@ -1,92 +1,91 @@
+import discord
+from discord.ext import commands
+import youtube_dl
+from replit import db
 
-sad_words = ['triste', 'cansado', 'acabado', 'destruido', 'raiva', ':(', 'depressão', 'matar', ':/']
-
-starter_encouragements = [
-    'Vai dar certo!',
-    'Levanta a cabeça meu irmão!!!',
-    'Rum, cunversa besta é essa?',
-    'Vai sair pra jogar um vôlei que a tristeza passa',
-    'Aguenta firme, você consegue',
-    'Você é especial!'
-]
-
-if "responding" not in db.keys():
-    db["responding"] = True
-
-client = discord.Client()
-
-def get_quote():
-    response = requests.get('https://zenquotes.io/api/random')
-    data = json.loads(response.text)
-    quote = "\"" + data[0]['q'] + "\"" + " -" + data[0]['a']
-    return quote
-
-def update_encouragements(message):
-    if "encouragements" in db.keys():
-        encouragements = db["encouragements"]
-        encouragements.append(message)
-        db["encouragements"] = encouragements
-    else:
-        db["encouragements"] = [message]
-
-def delete_encouragements(index):
-    encouragements = db["encouragements"]
-    if len(encouragements) > index:
-        del encouragements[index]
-        db["encouragements"] = encouragements
+class music(commands.Cog):
+    def __init__(self, client):
+        self.client = client
     
-@client.event
-async def on_ready():
-    print('We have logged in as {0.user}'.format(client))
-    print(client.users)
-
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-        
-    msg = message.content
-
-    if msg.startswith('-inspire'):
-        await message.channel.send(get_quote())
-
-    if db["responding"]:
-        options = starter_encouragements
-        if "encouragements" in db.keys():
-            options = options + db["encouragements"].value
-
-        if any(word in msg for word in sad_words):
-            await message.channel.send(random.choice(options))
-            await message.channel.send(':grin:')
-    
-    if msg.startswith('-new'):
-        encouraging_message = msg.split("-new ", 1)[1]
-        update_encouragements(encouraging_message)
-        await message.channel.send('Mensagem de amor adicionada!')
-
-    if msg.startswith('-del'):
-        encouragements = []
-        if "encouragements" in db.keys():
-            index = int(msg.split("-del ", 1)[1])
-            delete_encouragements(index)
-            encouragements = db["encouragements"].value
-        await message.channel.send(encouragements)
-
-    if msg.startswith('-show'):
-        if "encouragements" in db.keys() and len(db["encouragements"].value) > 0:
-            await message.channel.send(db["encouragements"].value)
+    def add_song(url):
+        if "songs" in db.keys():
+            songs = db["songs"]
+            songs.append(url)
+            db["songs"] = songs
         else:
-            await message.channel.send('Sem novas mensagens adicionadas.')
-    
-    if msg.startswith('-responding'):
-        db["responding"] = not db["responding"]
-        if db["responding"]:
-            await message.channel.send('Bot agora está lhe animando!')
-        else:
-            await message.channel.send('Mensagens de amor desativadas.')
-    
-    if msg.lower().find('salve') is not -1:
-        await message.channel.send('Salve {.author.name}!'.format(message))
-    
-    if msg.startswith("-p"):
+            db["songs"] = [url]
+
+    def remove_song():
+        songs = db["songs"]
+        if len(songs) > 0:
+            del songs[0]
+            db["songs"] = songs
+
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self,member,before, after):
         pass
+
+    @commands.command()
+    async def join(self, ctx):
+        if ctx.author.voice is None:
+            await ctx.send("Você não está em um canal de voz.")
+        voice_channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
+            await voice_channel.connect()
+            await ctx.guild.change_voice_state(channel=voice_channel, self_mute=False, self_deaf=True)
+        else:
+            await ctx.voice_client.move_to(voice_channel)
+    
+    @commands.command()
+    async def leave(self, ctx):
+        await ctx.message.add_reaction('👋')
+        await ctx.voice_client.disconnect()
+    
+    @commands.command()
+    async def disconnect(self, ctx):
+        await ctx.message.add_reaction('👋')
+        await ctx.voice_client.disconnect()
+    
+    @commands.command()
+    async def play(self, ctx, url):
+        if ctx.author.voice is None:
+            await ctx.send("Você não está em um canal de voz.")
+        else:
+            await ctx.message.add_reaction('▶️')
+
+        if ctx.voice_client is None:
+            await ctx.author.voice.channel.connect()
+            await ctx.guild.change_voice_state(channel=ctx.author.voice.channel, self_mute=False, self_deaf=True)
+
+        if ctx.voice_client.is_playing():
+            print('Tocando')
+        else:
+            print('N tocando nada')
+        
+        ctx.voice_client.stop()
+        FFMPEG_OPTIONS = {
+            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+            'options': '-vn'
+        }
+        YDL_OPTIONS = {'format': 'bestaudio'}
+        vc = ctx.voice_client
+
+        with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
+            info = ydl.extract_info(url, download=False)
+            url2 = info['formats'][0]['url']
+            source = await discord.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
+            vc.play(source)
+
+    @commands.command()
+    async def pause(self, ctx):
+        await ctx.message.add_reaction('⏸️')
+        await ctx.voice_client.pause()
+
+    @commands.command()
+    async def resume(self, ctx):
+        await ctx.message.add_reaction('⏯')
+        await ctx.voice_client.resume()
+
+def setup(client):
+    client.add_cog(music(client))
