@@ -294,6 +294,8 @@ class Music(commands.Cog):
 
         ctx.voice_state.voice = await destination.connect()
 
+        await ctx.guild.change_voice_state(channel=ctx.author.voice.channel, self_mute=False, self_deaf=True)
+
     @commands.command(name='summon')
     @commands.has_permissions(manage_guild=True)
     async def _summon(self, ctx: commands.Context, *, channel: discord.VoiceChannel = None):
@@ -311,7 +313,7 @@ class Music(commands.Cog):
 
         ctx.voice_state.voice = await destination.connect()
 
-    @commands.command(name='leave', aliases=['disconnect'])
+    @commands.command(name='leave', aliases=['disconnect', 'sai', 'tchau'])
     @commands.has_permissions(manage_guild=True)
     async def _leave(self, ctx: commands.Context):
         """Clears the queue and leaves the voice channel."""
@@ -319,6 +321,7 @@ class Music(commands.Cog):
         if not ctx.voice_state.voice:
             return await ctx.send('Not connected to any voice channel.')
 
+        await ctx.message.add_reaction('👋')
         await ctx.voice_state.stop()
         del self.voice_states[ctx.guild.id]
 
@@ -335,13 +338,13 @@ class Music(commands.Cog):
         ctx.voice_state.volume = volume / 100
         await ctx.send('Volume of the player set to {}%'.format(volume))
 
-    @commands.command(name='now', aliases=['current', 'playing'])
+    @commands.command(name='now', aliases=['current', 'playing', 'tocando'])
     async def _now(self, ctx: commands.Context):
         """Displays the currently playing song."""
 
         await ctx.send(embed=ctx.voice_state.current.create_embed())
 
-    @commands.command(name='pause')
+    @commands.command(name='pause', aliases=['pau', 'pa'])
     @commands.has_permissions(manage_guild=True)
     async def _pause(self, ctx: commands.Context):
         """Pauses the currently playing song."""
@@ -350,7 +353,7 @@ class Music(commands.Cog):
             await ctx.message.add_reaction('⏸️')
             ctx.voice_client.pause()
 
-    @commands.command(name='resume')
+    @commands.command(name='resume', aliases=['r', 'volta'])
     @commands.has_permissions(manage_guild=True)
     async def _resume(self, ctx: commands.Context):
         """Resumes a currently paused song."""
@@ -397,7 +400,7 @@ class Music(commands.Cog):
         else:
             await ctx.send('You have already voted to skip this song.')
 
-    @commands.command(name='queue')
+    @commands.command(name='queue', aliases=['q', 'fila'])
     async def _queue(self, ctx: commands.Context, *, page: int = 1):
         """Shows the player's queue.
         You can optionally specify the page to show. Each page contains 10 elements.
@@ -453,7 +456,7 @@ class Music(commands.Cog):
         ctx.voice_state.loop = not ctx.voice_state.loop
         await ctx.message.add_reaction('✅')
 
-    @commands.command(name='play')
+    @commands.command(name='play', aliases=['p','toca'])
     async def _play(self, ctx: commands.Context, *, search: str):
         """Plays a song.
         If there are songs in the queue, this will be queued until the
@@ -485,6 +488,17 @@ class Music(commands.Cog):
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
                 raise commands.CommandError('Bot is already in a voice channel.')
+
+    @commands.command(name='inspire')
+    async def _inspire(self):
+        """Send a inspirational message."""
+        pass
+    
+    @commands.command(name='responding')
+    async def _responding(self):
+        """Turn On/Off bot encouragements."""
+        pass
+        
 
 def setup(client):
     client.add_cog(Music(client))
